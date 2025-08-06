@@ -8,16 +8,14 @@ import android.os.BatteryManager;
 import android.os.Bundle;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.os.Handler;
 
 import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
 
     TextView statusText;
-    long chargingStartTime = 0;
+    long lastChargeStartTime = 0;
     boolean wasCharging = false;
-    Handler handler = new Handler();
 
     BroadcastReceiver batteryReceiver = new BroadcastReceiver() {
         @Override
@@ -30,28 +28,31 @@ public class MainActivity extends AppCompatActivity {
             boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
                     status == BatteryManager.BATTERY_STATUS_FULL;
 
+            // Show debug toast
+            Toast.makeText(context,
+                    "isPlugged: " + isPlugged + ", isCharging: " + isCharging,
+                    Toast.LENGTH_SHORT).show();
+
+            long currentTime = System.currentTimeMillis();
+
             if (isCharging) {
-                // Charging started
-                chargingStartTime = System.currentTimeMillis();
+                lastChargeStartTime = currentTime;
                 wasCharging = true;
                 statusText.setText("✅ Charging...");
             } else if (isPlugged && !isCharging) {
-                // Plugged in, but not charging
                 if (wasCharging) {
-                    long now = System.currentTimeMillis();
-                    long diff = now - chargingStartTime;
+                    long timeSinceCharge = currentTime - lastChargeStartTime;
 
-                    if (diff <= 5000) {
-                        // Stopped charging too quickly — possible capacitor burst
-                        statusText.setText("⚠️ Brief charge detected! Switch may be OFF.");
+                    if (timeSinceCharge < 5000) {
+                        statusText.setText("⚠️ Brief charge detected! Power switch may be OFF.");
                         Toast.makeText(context,
-                                "Charging started but stopped — did you forget to turn ON the switch?",
+                                "Brief charging detected and stopped. Did you forget to turn ON the switch?",
                                 Toast.LENGTH_LONG).show();
                     } else {
                         statusText.setText("🔌 Plugged in, but not charging.");
                     }
 
-                    wasCharging = false; // reset
+                    wasCharging = false;
                 } else {
                     statusText.setText("🔌 Plugged in, but not charging.");
                 }
@@ -60,6 +61,7 @@ public class MainActivity extends AppCompatActivity {
                 wasCharging = false;
             }
         }
+
     };
 
     @Override
